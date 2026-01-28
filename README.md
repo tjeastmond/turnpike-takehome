@@ -133,11 +133,6 @@ Run the test suite:
 pnpm test
 ```
 
-Run tests with UI:
-```bash
-pnpm test:ui
-```
-
 Generate test coverage:
 ```bash
 pnpm test:coverage

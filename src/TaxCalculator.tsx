@@ -677,12 +677,12 @@ for personalized advice.
                 <span className="text-gray-600">Gross</span>
                 <span className="font-semibold">{formatCurrency(calculations.grossIncome)}</span>
               </div>
-              <div className="flex justify-between py-2 border-b">
+              <div className="flex justify-between py-2">
                 <span className="text-gray-600">Expenses</span>
                 <span className="font-semibold text-red-600">-{formatCurrency(calculations.totalExpenses)}</span>
               </div>
               {calculations.homeOfficeDeduction > 0 && (
-                <div className="flex justify-between py-2 border-b">
+                <div className="flex justify-between py-2">
                   <span className="text-gray-600">Home Office</span>
                   <span className="font-semibold text-red-600">-{formatCurrency(calculations.homeOfficeDeduction)}</span>
                 </div>
@@ -709,14 +709,21 @@ for personalized advice.
                 <span className="text-gray-600">Standard</span>
                 <span className="font-medium text-green-600">-{formatCurrency(calculations.standardDeduction)}</span>
               </div>
-              <div className="flex justify-between text-sm py-2 border-b">
-                <span className="text-gray-600">QBI (20%)</span>
-                <span className="font-medium text-green-600">-{formatCurrency(calculations.qbiDeduction)}</span>
-              </div>
-              {calculations.childTaxCredit > 0 && (
-                <div className="flex justify-between text-sm py-2 border-b">
-                  <span className="text-gray-600">Child Credit</span>
-                  <span className="font-medium text-green-600">-{formatCurrency(calculations.childTaxCredit)}</span>
+              {calculations.childTaxCredit > 0 ? (
+                <>
+                  <div className="flex justify-between text-sm py-2 border-b">
+                    <span className="text-gray-600">QBI (20%)</span>
+                    <span className="font-medium text-green-600">-{formatCurrency(calculations.qbiDeduction)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm py-2">
+                    <span className="text-gray-600">Child Credit</span>
+                    <span className="font-medium text-green-600">-{formatCurrency(calculations.childTaxCredit)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between text-sm py-2">
+                  <span className="text-gray-600">QBI (20%)</span>
+                  <span className="font-medium text-green-600">-{formatCurrency(calculations.qbiDeduction)}</span>
                 </div>
               )}
             </div>
@@ -733,7 +740,7 @@ for personalized advice.
                 <span className="text-gray-600">Federal Income</span>
                 <span className="font-medium">{formatCurrency(calculations.federalTax)}</span>
               </div>
-              <div className="flex justify-between text-sm py-2 border-b">
+              <div className="flex justify-between text-sm py-2">
                 <span className="text-gray-600">NJ State</span>
                 <span className="font-medium">{formatCurrency(calculations.njTax)}</span>
               </div>

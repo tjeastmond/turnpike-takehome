@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Vite / tooling caches
+.vite/
+*.tsbuildinfo
+
+# Test output
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env files
+.env
+.env.*
+
+# OS / editor files
+.DS_Store
+
+# Local databases
+*.duckdb
+
+# Docs
+docs/

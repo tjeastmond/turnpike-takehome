@@ -1,0 +1,1 @@
+- [x] `src/main.jsx` called `createRoot` twice (`ReactDOM.createRoot(...).createRoot(...)`), which likely prevented the app from mounting correctly. Fixed by migrating to `src/main.tsx` and using `createRoot(...).render(...)`.

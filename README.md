@@ -23,14 +23,13 @@ A comprehensive tax calculator web application for 1099 contractors in New Jerse
 
 - **Node.js** (v18 or higher recommended)
 - **pnpm** (package manager)
-- **Python 3** (for database scripts, optional)
 
 ## Installation
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd taxes
+git clone https://github.com/tjeastmond/turnpike-takehome.git
+cd turnpike-takehome
 ```
 
 2. Install dependencies:
@@ -72,54 +71,22 @@ pnpm preview
 | `pnpm test:ui` | Launch Vitest UI runner |
 | `pnpm test:coverage` | Run tests and generate coverage |
 | `pnpm typecheck` | Run TypeScript type checking |
-| `pnpm db:create` | Create DuckDB database from CSV (requires Python) |
-| `pnpm db:create:sql` | Create DuckDB database using SQL script (requires DuckDB CLI) |
-
-## Database Setup
-
-The project includes scripts to import transaction data from CSV files into a DuckDB database.
-
-### Using Python Script
-
-Requires Python packages: `duckdb` and `pandas`
-
-```bash
-pip install duckdb pandas
-pnpm db:create
-```
-
-This reads `docs/stmt.csv` and creates a `transactions` table in `taxes.duckdb`.
-
-### Using SQL Script
-
-Requires DuckDB CLI to be installed and on your PATH:
-
-```bash
-pnpm db:create:sql
-```
-
-This runs `scripts/create_duckdb_table.sql` to create the database from the CSV file.
 
 ## Project Structure
 
 ```
 .
-├── docs/                    # Documentation and reference files
-│   ├── stmt.csv            # Transaction CSV input
-│   └── adp_last_pay_stub.pdf
-├── scripts/                 # Database creation scripts
-│   ├── create_db.py        # Python script for DB creation
-│   └── create_duckdb_table.sql
+├── scripts/                 # Utility scripts
 ├── src/                     # Source code
-│   ├── main.tsx            # React entry point
-│   ├── TaxCalculator.tsx   # Main calculator component
-│   └── index.css           # Tailwind CSS directives
-├── index.html              # Vite entry HTML
-├── package.json            # Dependencies and scripts
-├── vite.config.js          # Vite configuration
-├── tailwind.config.js      # Tailwind CSS configuration
-├── postcss.config.js       # PostCSS configuration
-└── taxes.duckdb           # DuckDB database file (generated)
+│   ├── main.tsx             # React entry point
+│   ├── TaxCalculator.tsx    # Main calculator component
+│   └── index.css            # Tailwind CSS directives
+├── index.html               # Vite entry HTML
+├── package.json             # Dependencies and scripts
+├── pnpm-lock.yaml           # Lockfile for reproducible installs
+├── vite.config.js            # Vite configuration
+├── tailwind.config.js        # Tailwind CSS configuration
+└── postcss.config.js         # PostCSS configuration
 ```
 
 ## Key Features Explained

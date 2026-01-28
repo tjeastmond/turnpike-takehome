@@ -1,14 +1,13 @@
 {
-  "name": "nj-1099-tax-calculator",
-  "version": "1.0.0",
+  "name": "turnpike-takehome",
+  "version": "0.5.0",
   "description": "A comprehensive tax calculator for 1099 contractors in New Jersey",
+  "author": "TJ Eastmond <tjeastmond@gmail.com>",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "db:create": "python3 scripts/create_db.py",
-    "db:create:sql": "duckdb taxes.duckdb < scripts/create_duckdb_table.sql",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest",
     "test:ui": "vitest --ui",

@@ -14,6 +14,7 @@ This document is a quick guide for AI agents and contributors to understand this
 ```text
 .
 ├── scripts/          # ancillary SQL (not used by the Vite app at runtime)
+├── saves/            # created on first Save when dev/preview server handles POST /__tax-save
 ├── src/
 ├── index.html
 ├── package.json
@@ -31,7 +32,7 @@ This document is a quick guide for AI agents and contributors to understand this
 - `**package.json**`: Node package manifest; defines `pnpm` scripts and dependencies.
 - `**pnpm-lock.yaml**`: Lockfile for reproducible installs.
 - `**index.html**`: Vite entry HTML; mounts React at `#root` and loads `src/main.tsx`.
-- `**vite.config.js**`: Vite config (React plugin), dev server port **4000**, and Vitest settings (`globals: true`, `environment: 'jsdom'`).
+- `**vite.config.js**`: Vite config (React plugin), dev server port **4000**, Vitest settings (`globals: true`, `environment: 'jsdom'`), and the **`tax-calculator-save`** plugin that handles **`POST /__tax-save`** during **`pnpm dev`** and **`pnpm preview`** only (writes JSON files under `./saves`).
 - `**tsconfig.json`**: TypeScript compiler options (`strict`, `jsx: react-jsx`, `include: ["src"]`).
 - `**tailwind.config.js**`: Tailwind content scanning for `index.html` and `src/**/*.{js,ts,jsx,tsx}`.
 - `**postcss.config.js**`: PostCSS plugin config (Tailwind + Autoprefixer).
@@ -43,7 +44,7 @@ This document is a quick guide for AI agents and contributors to understand this
 ### `src/`
 
 - `**src/main.tsx**`: React entrypoint; creates the root and renders `TaxCalculator` inside `StrictMode`.
-- `**src/TaxCalculator.tsx**`: Main application UI and tax calculation logic (inputs, localStorage persistence, CSV/JSON/TXT export, import).
+- `**src/TaxCalculator.tsx**`: Main application UI and tax calculation logic (inputs, localStorage persistence, **Save** + export/import, toast notifications).
 - `**src/index.css**`: Tailwind directives (`@tailwind base/components/utilities`).
 - `**src/vite-env.d.ts**`: Vite client types reference.
 
@@ -58,4 +59,28 @@ Run these from the repo root.
 - `**pnpm test**`: Run tests with Vitest.
 - `**pnpm test:ui**`: Launch Vitest UI runner.
 - `**pnpm test:coverage**`: Run tests and generate coverage.
+
+## Saving and persistence
+
+### Automatic browser storage
+
+- Form state is written to **`localStorage`** under the key **`taxCalculatorData`** whenever inputs change (income, expenses, filing status, dependents, retirement, home office fields).
+- **New** clears that key and resets the form after confirmation.
+
+### Save button (snapshot JSON on disk)
+
+- **Save** does two things: it **explicitly** re-writes **`taxCalculatorData`** to `localStorage` (same shape as the auto-save effect), and it sends a **`POST /__tax-save`** request with JSON body `{ filename, contents }`.
+- **`contents`** is the same structured export as **Export → Export as JSON** (`metadata`, `inputs`, `calculations`), produced by **`stringifyTaxExportJson()`** in `TaxCalculator.tsx`.
+- **`filename`** is **`001_tax-calculation-YYYY-MM-DD.json`** (date from ISO, same date pattern as the default export filename, with an `001_` prefix).
+- When the Vite dev or preview server is running, the **`tax-calculator-save`** middleware creates **`./saves/`** if needed and writes the file there. Filenames are validated (basename only, `.json`, safe characters); payload size is capped (~2 MB).
+- **Static hosting / `file://` / no server**: the POST fails; the app still keeps **`localStorage`** updated and shows a **warning** toast explaining that **`saves/`** is only available with **`pnpm dev`** or **`pnpm preview`**.
+
+### Export vs Save
+
+- **Export → Export as JSON** triggers a **browser download** with the default name **`tax-calculation-YYYY-MM-DD.json`** (no `001_` prefix, no `saves/` write).
+- **Save** does **not** start a download; it targets **`saves/`** via the dev/preview server when available.
+
+### Toasts
+
+- Save, import success, new session, and save failures use a **fixed-position toast** at the bottom of the viewport (not inline in the header) so the toolbar layout does not shift when messages appear.
 

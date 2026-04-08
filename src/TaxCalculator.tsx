@@ -22,6 +22,8 @@ type HomeOfficeInputs = {
   internet: string;
 };
 
+type ToastVariant = 'success' | 'warning';
+
 export default function TaxCalculator() {
   const [income, setIncome] = useState('');
   const [expenses, setExpenses] = useState<Expense[]>([{ id: 1, description: '', amount: '' }]);
@@ -34,10 +36,22 @@ export default function TaxCalculator() {
     mortgagePayment: '', propertyTaxes: '', homeInsurance: '',
     utilities: '', internet: ''
   });
-  const [saveMessage, setSaveMessage] = useState('');
+  const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const showToast = (message: string, variant: ToastVariant = 'success', durationMs = 3000) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToast({ message, variant });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimeoutRef.current = null;
+    }, durationMs);
+  };
 
   useEffect(() => {
     const savedData = localStorage.getItem('taxCalculatorData');
@@ -68,6 +82,10 @@ export default function TaxCalculator() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showExportMenu]);
 
+  useEffect(() => () => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+  }, []);
+
   useEffect(() => {
     const dataToSave = { income, expenses, filingStatus, dependents, retirementContribution, useHomeOffice, homeOffice };
     localStorage.setItem('taxCalculatorData', JSON.stringify(dataToSave));
@@ -89,11 +107,10 @@ export default function TaxCalculator() {
       if (!res.ok) {
         throw new Error(await res.text());
       }
-      setSaveMessage(`Saved to saves/${filename}`);
+      showToast(`Saved to saves/${filename}`, 'success', 4000);
     } catch {
-      setSaveMessage('Saved in browser; could not write saves/ (use pnpm dev or pnpm preview).');
+      showToast('Saved in browser; could not write saves/ (use pnpm dev or pnpm preview).', 'warning', 5000);
     }
-    setTimeout(() => setSaveMessage(''), 4000);
   };
 
   const clearAndReset = () => {
@@ -103,8 +120,7 @@ export default function TaxCalculator() {
       setUseHomeOffice(false);
       setHomeOffice({ officeLength: '', officeWidth: '', homeSquareFeet: '', mortgagePayment: '', propertyTaxes: '', homeInsurance: '', utilities: '', internet: '' });
       localStorage.removeItem('taxCalculatorData');
-      setSaveMessage('New session started!');
-      setTimeout(() => setSaveMessage(''), 2000);
+      showToast('New session started!', 'success', 2000);
     }
   };
 
@@ -192,8 +208,7 @@ export default function TaxCalculator() {
           }
         }
 
-        setSaveMessage('File imported successfully!');
-        setTimeout(() => setSaveMessage(''), 3000);
+        showToast('File imported successfully!', 'success', 3000);
 
         event.target.value = '';
       } catch (error) {
@@ -522,6 +537,17 @@ for personalized advice.
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-6 left-1/2 z-[100] max-w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg px-4 py-3 text-sm font-medium shadow-lg ${
+            toast.variant === 'warning' ? 'bg-amber-900 text-amber-50' : 'bg-gray-900 text-white'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-xl p-6 md:p-8 mb-6">
           <div className="flex items-center justify-between mb-6">
@@ -530,7 +556,6 @@ for personalized advice.
               <h1 className="text-3xl font-bold text-gray-800">NJ 1099 Tax Calculator</h1>
             </div>
             <div className="flex items-center gap-2">
-              {saveMessage && <span className="text-sm text-green-600 font-medium mr-2">{saveMessage}</span>}
               <input
                 ref={fileInputRef}
                 type="file"

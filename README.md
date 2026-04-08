@@ -41,12 +41,12 @@ pnpm install
 
 ### Development Server
 
-Start the development server (runs on port 3000):
+Start the development server (runs on port 4000):
 ```bash
 pnpm dev
 ```
 
-Open your browser to `http://localhost:3000` to use the calculator.
+Open your browser to `http://localhost:4000` to use the calculator.
 
 ### Building for Production
 
@@ -64,7 +64,7 @@ pnpm preview
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Start Vite dev server on port 3000 |
+| `pnpm dev` | Start Vite dev server on port 4000 |
 | `pnpm build` | Build production bundle |
 | `pnpm preview` | Serve production build locally |
 | `pnpm test` | Run tests with Vitest |

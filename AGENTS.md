@@ -31,7 +31,7 @@ This document is a quick guide for AI agents and contributors to understand this
 - `**package.json**`: Node package manifest; defines `pnpm` scripts and dependencies.
 - `**pnpm-lock.yaml**`: Lockfile for reproducible installs.
 - `**index.html**`: Vite entry HTML; mounts React at `#root` and loads `src/main.tsx`.
-- `**vite.config.js**`: Vite config (React plugin), dev server port **3000**, and Vitest settings (`globals: true`, `environment: 'jsdom'`).
+- `**vite.config.js**`: Vite config (React plugin), dev server port **4000**, and Vitest settings (`globals: true`, `environment: 'jsdom'`).
 - `**tsconfig.json`**: TypeScript compiler options (`strict`, `jsx: react-jsx`, `include: ["src"]`).
 - `**tailwind.config.js**`: Tailwind content scanning for `index.html` and `src/**/*.{js,ts,jsx,tsx}`.
 - `**postcss.config.js**`: PostCSS plugin config (Tailwind + Autoprefixer).
@@ -51,7 +51,7 @@ This document is a quick guide for AI agents and contributors to understand this
 
 Run these from the repo root.
 
-- `**pnpm dev**`: Start Vite dev server (configured to use port **3000**).
+- `**pnpm dev**`: Start Vite dev server (configured to use port **4000**).
 - `**pnpm build`**: Build the production bundle.
 - `**pnpm preview**`: Serve the production build locally for preview.
 - `**pnpm typecheck**`: Run `tsc -p tsconfig.json --noEmit`.

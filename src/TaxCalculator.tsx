@@ -73,9 +73,27 @@ export default function TaxCalculator() {
     localStorage.setItem('taxCalculatorData', JSON.stringify(dataToSave));
   }, [income, expenses, filingStatus, dependents, retirementContribution, useHomeOffice, homeOffice]);
 
-  const saveProgress = () => {
-    setSaveMessage('Progress saved!');
-    setTimeout(() => setSaveMessage(''), 2000);
+  const jsonExportBasename = () =>
+    `tax-calculation-${new Date().toISOString().split('T')[0]}`;
+
+  const saveProgress = async () => {
+    const dataToSave = { income, expenses, filingStatus, dependents, retirementContribution, useHomeOffice, homeOffice };
+    localStorage.setItem('taxCalculatorData', JSON.stringify(dataToSave));
+    const filename = `001_${jsonExportBasename()}.json`;
+    try {
+      const res = await fetch('/__tax-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, contents: stringifyTaxExportJson() }),
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      setSaveMessage(`Saved to saves/${filename}`);
+    } catch {
+      setSaveMessage('Saved in browser; could not write saves/ (use pnpm dev or pnpm preview).');
+    }
+    setTimeout(() => setSaveMessage(''), 4000);
   };
 
   const clearAndReset = () => {
@@ -221,48 +239,13 @@ export default function TaxCalculator() {
     URL.revokeObjectURL(url);
   };
 
-  const exportToJSON = () => {
-    const jsonData = {
-      metadata: {
-        exportDate: new Date().toISOString(),
-        taxYear: 2025
-      },
-      inputs: {
-        filingStatus: filingStatus === 'single' ? 'Single' : 'Married Filing Jointly',
-        qualifyingChildren: parseInt(dependents) || 0,
-        income: calculations.grossIncome,
-        expenses: expenses.map(e => ({ description: e.description, amount: parseFloat(e.amount) || 0 })),
-        retirementContributions: calculations.retirementAmount,
-        homeOffice: useHomeOffice ? {
-          enabled: true,
-          officeLength: parseFloat(homeOffice.officeLength) || 0,
-          officeWidth: parseFloat(homeOffice.officeWidth) || 0,
-          homeSquareFeet: parseFloat(homeOffice.homeSquareFeet) || 0,
-          businessUsePercent: calculations.businessUsePercent,
-          deduction: calculations.homeOfficeDeduction
-        } : { enabled: false }
-      },
-      calculations: {
-        scheduleCNetProfit: calculations.scheduleCNetProfit,
-        selfEmploymentTax: calculations.seTax,
-        seDeduction: calculations.seDeduction,
-        qbiDeduction: calculations.qbiDeduction,
-        childTaxCredit: calculations.childTaxCredit,
-        federalIncomeTax: calculations.federalTax,
-        njStateTax: calculations.njTax,
-        totalTax: calculations.totalTax,
-        effectiveRate: parseFloat(calculations.effectiveRate.toFixed(2)),
-        netAfterTax: calculations.netAfterTax,
-        quarterlyPayment: calculations.quarterlyPayment
-      }
-    };
-
-    const json = JSON.stringify(jsonData, null, 2);
+  const exportToJSON = (downloadFilename?: string) => {
+    const json = stringifyTaxExportJson();
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tax-calculation-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = downloadFilename ?? `${jsonExportBasename()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -496,6 +479,44 @@ for personalized advice.
       effectiveRate, netAfterTax, quarterlyPayment: totalTax / 4, standardDeduction
     };
   }, [income, expenses, filingStatus, dependents, retirementContribution, useHomeOffice, homeOffice]);
+
+  const stringifyTaxExportJson = () => {
+    const jsonData = {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        taxYear: 2025
+      },
+      inputs: {
+        filingStatus: filingStatus === 'single' ? 'Single' : 'Married Filing Jointly',
+        qualifyingChildren: parseInt(dependents) || 0,
+        income: calculations.grossIncome,
+        expenses: expenses.map(e => ({ description: e.description, amount: parseFloat(e.amount) || 0 })),
+        retirementContributions: calculations.retirementAmount,
+        homeOffice: useHomeOffice ? {
+          enabled: true,
+          officeLength: parseFloat(homeOffice.officeLength) || 0,
+          officeWidth: parseFloat(homeOffice.officeWidth) || 0,
+          homeSquareFeet: parseFloat(homeOffice.homeSquareFeet) || 0,
+          businessUsePercent: calculations.businessUsePercent,
+          deduction: calculations.homeOfficeDeduction
+        } : { enabled: false }
+      },
+      calculations: {
+        scheduleCNetProfit: calculations.scheduleCNetProfit,
+        selfEmploymentTax: calculations.seTax,
+        seDeduction: calculations.seDeduction,
+        qbiDeduction: calculations.qbiDeduction,
+        childTaxCredit: calculations.childTaxCredit,
+        federalIncomeTax: calculations.federalTax,
+        njStateTax: calculations.njTax,
+        totalTax: calculations.totalTax,
+        effectiveRate: parseFloat(calculations.effectiveRate.toFixed(2)),
+        netAfterTax: calculations.netAfterTax,
+        quarterlyPayment: calculations.quarterlyPayment
+      }
+    };
+    return JSON.stringify(jsonData, null, 2);
+  };
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 

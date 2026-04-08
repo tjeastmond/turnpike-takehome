@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { DollarSign, Plus, X, Save, RefreshCw, Download, Upload } from 'lucide-react';
+import { flushSync } from 'react-dom';
+import { DollarSign, Plus, X, Save, RefreshCw, Download, Upload, FolderOpen } from 'lucide-react';
 
 type FilingStatus = 'single' | 'married';
 
@@ -24,6 +25,18 @@ type HomeOfficeInputs = {
 
 type ToastVariant = 'success' | 'warning';
 
+/** Matches server `isValidTaxExportContentsString` — real objects for `inputs` / `calculations`. */
+type TaxExportJson = { inputs: Record<string, unknown>; calculations: Record<string, unknown> };
+
+function isTaxExportJsonRoot(value: unknown): value is TaxExportJson {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const o = value as Record<string, unknown>;
+  const { inputs, calculations } = o;
+  if (inputs === null || typeof inputs !== 'object' || Array.isArray(inputs)) return false;
+  if (calculations === null || typeof calculations !== 'object' || Array.isArray(calculations)) return false;
+  return true;
+}
+
 export default function TaxCalculator() {
   const [income, setIncome] = useState('');
   const [expenses, setExpenses] = useState<Expense[]>([{ id: 1, description: '', amount: '' }]);
@@ -39,6 +52,9 @@ export default function TaxCalculator() {
   const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showFilesMenu, setShowFilesMenu] = useState(false);
+  const [savesFiles, setSavesFiles] = useState<{ name: string; mtimeMs: number }[]>([]);
+  const [savesListLoading, setSavesListLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -77,28 +93,68 @@ export default function TaxCalculator() {
       if (showExportMenu && (!target || !target.closest('.export-dropdown'))) {
         setShowExportMenu(false);
       }
+      if (showFilesMenu && (!target || !target.closest('.files-dropdown'))) {
+        setShowFilesMenu(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showExportMenu]);
+  }, [showExportMenu, showFilesMenu]);
 
   useEffect(() => () => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
   }, []);
 
+  const snapshotFormForStorage = () => ({
+    income,
+    expenses,
+    filingStatus,
+    dependents,
+    retirementContribution,
+    useHomeOffice,
+    homeOffice,
+  });
+
   useEffect(() => {
-    const dataToSave = { income, expenses, filingStatus, dependents, retirementContribution, useHomeOffice, homeOffice };
-    localStorage.setItem('taxCalculatorData', JSON.stringify(dataToSave));
+    localStorage.setItem('taxCalculatorData', JSON.stringify(snapshotFormForStorage()));
   }, [income, expenses, filingStatus, dependents, retirementContribution, useHomeOffice, homeOffice]);
 
   const jsonExportBasename = () =>
     `tax-calculation-${new Date().toISOString().split('T')[0]}`;
 
-  const saveProgress = async () => {
-    const dataToSave = { income, expenses, filingStatus, dependents, retirementContribution, useHomeOffice, homeOffice };
-    localStorage.setItem('taxCalculatorData', JSON.stringify(dataToSave));
-    const filename = `001_${jsonExportBasename()}.json`;
+  /** Parse + validate export shape, then apply state in one synchronous flush (same as FileReader import). */
+  const importFromExportJsonText = (text: string): boolean => {
+    const trimmed = text.trim();
+    if (trimmed === '') {
+      alert('Error importing file. Please make sure it is a valid JSON file exported from this calculator.');
+      return false;
+    }
+    let parsed: unknown;
     try {
+      parsed = JSON.parse(trimmed);
+    } catch (error) {
+      console.error('Import error:', error);
+      alert('Error importing file. Please make sure it is a valid JSON file exported from this calculator.');
+      return false;
+    }
+    if (!isTaxExportJsonRoot(parsed)) {
+      alert('Invalid file format. Please select a JSON file exported from this calculator.');
+      return false;
+    }
+    flushSync(() => {
+      applyImportedExportJson(parsed);
+    });
+    return true;
+  };
+
+  const saveProgress = async () => {
+    localStorage.setItem('taxCalculatorData', JSON.stringify(snapshotFormForStorage()));
+    try {
+      const idxRes = await fetch('/__tax-saves-next-index');
+      if (!idxRes.ok) throw new Error('next index');
+      const body = (await idxRes.json()) as { nextIndex?: number };
+      const n = typeof body.nextIndex === 'number' && body.nextIndex >= 1 ? body.nextIndex : 1;
+      const filename = `${String(n).padStart(3, '0')}_${jsonExportBasename()}.json`;
       const res = await fetch('/__tax-save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -149,72 +205,114 @@ export default function TaxCalculator() {
     setDraggedIndex(null);
   };
 
+  const applyImportedExportJson = (jsonData: TaxExportJson) => {
+    const { inputs } = jsonData;
+
+    if (inputs.filingStatus === 'Single' || inputs.filingStatus === 'Married Filing Jointly') {
+      setFilingStatus(inputs.filingStatus === 'Single' ? 'single' : 'married');
+    }
+
+    if (inputs.qualifyingChildren !== undefined) {
+      setDependents(String(inputs.qualifyingChildren));
+    }
+
+    if (inputs.income !== undefined) {
+      setIncome(String(inputs.income));
+    }
+
+    const rawExpenses = inputs.expenses;
+    if (Array.isArray(rawExpenses)) {
+      const importedExpenses: Expense[] = rawExpenses.map((exp: unknown, idx: number) => {
+        const row = exp && typeof exp === 'object' && !Array.isArray(exp) ? (exp as Record<string, unknown>) : {};
+        return {
+          id: Date.now() + idx,
+          description: typeof row.description === 'string' ? row.description : '',
+          amount: row.amount !== undefined && row.amount !== null ? String(row.amount) : '',
+        };
+      });
+      setExpenses(importedExpenses.length > 0 ? importedExpenses : [{ id: Date.now(), description: '', amount: '' }]);
+    }
+
+    if (inputs.retirementContributions !== undefined) {
+      setRetirementContribution(String(inputs.retirementContributions));
+    }
+
+    const ho = inputs.homeOffice;
+    if (ho !== null && typeof ho === 'object' && !Array.isArray(ho)) {
+      const h = ho as Record<string, unknown>;
+      if (h.enabled === true) {
+        setUseHomeOffice(true);
+        setHomeOffice({
+          officeLength: h.officeLength !== undefined && h.officeLength !== null ? String(h.officeLength) : '',
+          officeWidth: h.officeWidth !== undefined && h.officeWidth !== null ? String(h.officeWidth) : '',
+          homeSquareFeet: h.homeSquareFeet !== undefined && h.homeSquareFeet !== null ? String(h.homeSquareFeet) : '',
+          mortgagePayment: homeOffice.mortgagePayment || '',
+          propertyTaxes: homeOffice.propertyTaxes || '',
+          homeInsurance: homeOffice.homeInsurance || '',
+          utilities: homeOffice.utilities || '',
+          internet: homeOffice.internet || '',
+        });
+      } else {
+        setUseHomeOffice(false);
+      }
+    }
+  };
+
+  const refreshSavesList = async () => {
+    setSavesListLoading(true);
+    try {
+      const res = await fetch('/__tax-saves-list');
+      if (!res.ok) throw new Error('list failed');
+      const data = (await res.json()) as { files?: { name: string; mtimeMs: number }[] };
+      setSavesFiles(data.files ?? []);
+    } catch {
+      setSavesFiles([]);
+      showToast('Could not load saves/ (use pnpm dev or pnpm preview).', 'warning', 5000);
+    } finally {
+      setSavesListLoading(false);
+    }
+  };
+
+  const toggleFilesMenu = () => {
+    if (showFilesMenu) {
+      setShowFilesMenu(false);
+    } else {
+      setShowFilesMenu(true);
+      void refreshSavesList();
+    }
+  };
+
+  const loadSaveFromServer = async (filename: string) => {
+    try {
+      const res = await fetch(`/__tax-saves-read?filename=${encodeURIComponent(filename)}`);
+      if (!res.ok) throw new Error('read failed');
+      const text = await res.text();
+      if (!importFromExportJsonText(text)) return;
+      setShowFilesMenu(false);
+      showToast(`Loaded ${filename}`, 'success', 3000);
+    } catch {
+      showToast('Could not read that save (use pnpm dev or pnpm preview).', 'warning', 5000);
+    }
+  };
+
   const importFromJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e: ProgressEvent<FileReader>) => {
-      try {
-        const text = e.target?.result;
-        if (typeof text !== 'string') throw new Error('Invalid file contents');
-        const jsonData: any = JSON.parse(text);
-
-        if (!jsonData.inputs || !jsonData.calculations) {
-          alert('Invalid file format. Please select a JSON file exported from this calculator.');
-          return;
-        }
-
-        if (jsonData.inputs.filingStatus) {
-          setFilingStatus(jsonData.inputs.filingStatus === 'Single' ? 'single' : 'married');
-        }
-
-        if (jsonData.inputs.qualifyingChildren !== undefined) {
-          setDependents(jsonData.inputs.qualifyingChildren.toString());
-        }
-
-        if (jsonData.inputs.income !== undefined) {
-          setIncome(jsonData.inputs.income.toString());
-        }
-
-        if (jsonData.inputs.expenses && Array.isArray(jsonData.inputs.expenses)) {
-          const importedExpenses: Expense[] = jsonData.inputs.expenses.map((exp: any, idx: number) => ({
-            id: Date.now() + idx,
-            description: exp.description || '',
-            amount: exp.amount ? exp.amount.toString() : ''
-          }));
-          setExpenses(importedExpenses.length > 0 ? importedExpenses : [{ id: Date.now(), description: '', amount: '' }]);
-        }
-
-        if (jsonData.inputs.retirementContributions !== undefined) {
-          setRetirementContribution(jsonData.inputs.retirementContributions.toString());
-        }
-
-        if (jsonData.inputs.homeOffice) {
-          if (jsonData.inputs.homeOffice.enabled) {
-            setUseHomeOffice(true);
-            setHomeOffice({
-              officeLength: jsonData.inputs.homeOffice.officeLength?.toString() || '',
-              officeWidth: jsonData.inputs.homeOffice.officeWidth?.toString() || '',
-              homeSquareFeet: jsonData.inputs.homeOffice.homeSquareFeet?.toString() || '',
-              mortgagePayment: homeOffice.mortgagePayment || '',
-              propertyTaxes: homeOffice.propertyTaxes || '',
-              homeInsurance: homeOffice.homeInsurance || '',
-              utilities: homeOffice.utilities || '',
-              internet: homeOffice.internet || ''
-            });
-          } else {
-            setUseHomeOffice(false);
-          }
-        }
-
-        showToast('File imported successfully!', 'success', 3000);
-
-        event.target.value = '';
-      } catch (error) {
-        console.error('Import error:', error);
+      const text = e.target?.result;
+      if (typeof text !== 'string') {
         alert('Error importing file. Please make sure it is a valid JSON file exported from this calculator.');
+        event.target.value = '';
+        return;
       }
+      if (!importFromExportJsonText(text)) {
+        event.target.value = '';
+        return;
+      }
+      showToast('File imported successfully!', 'success', 3000);
+      event.target.value = '';
     };
 
     reader.readAsText(file);
@@ -550,7 +648,7 @@ for personalized advice.
       )}
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-xl p-6 md:p-8 mb-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="relative z-30 flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <DollarSign className="w-8 h-8 text-indigo-600" />
               <h1 className="text-3xl font-bold text-gray-800">NJ 1099 Tax Calculator</h1>
@@ -577,7 +675,10 @@ for personalized advice.
                   <Download className="w-4 h-4" />Export
                 </button>
                 {showExportMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-10">
+                  <div
+                    className="absolute right-0 z-40 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-xl"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
                     <button
                       onClick={(e) => { e.preventDefault(); exportToCSV(); setShowExportMenu(false); }}
                       className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg text-sm text-gray-700"
@@ -596,6 +697,43 @@ for personalized advice.
                     >
                       Export as TXT
                     </button>
+                  </div>
+                )}
+              </div>
+              <div className="relative files-dropdown">
+                <button
+                  type="button"
+                  onClick={toggleFilesMenu}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm"
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  Files
+                </button>
+                {showFilesMenu && (
+                  <div
+                    className="absolute right-0 z-40 mt-2 max-h-72 w-[min(20rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    {savesListLoading ? (
+                      <div className="px-4 py-3 text-sm text-gray-500">Loading…</div>
+                    ) : savesFiles.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-500">No saves in saves/ yet.</div>
+                    ) : (
+                      savesFiles.map((f) => (
+                        <button
+                          key={f.name}
+                          type="button"
+                          onClick={() => void loadSaveFromServer(f.name)}
+                          className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-800 border-b border-gray-100 last:border-b-0 flex flex-col gap-0.5"
+                          title={f.name}
+                        >
+                          <span className="truncate font-medium">{f.name}</span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(f.mtimeMs).toLocaleString()}
+                          </span>
+                        </button>
+                      ))
+                    )}
                   </div>
                 )}
               </div>

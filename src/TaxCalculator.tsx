@@ -242,15 +242,16 @@ export default function TaxCalculator() {
       const h = ho as Record<string, unknown>;
       if (h.enabled === true) {
         setUseHomeOffice(true);
+        const str = (v: unknown) => (v !== undefined && v !== null ? String(v) : '');
         setHomeOffice({
-          officeLength: h.officeLength !== undefined && h.officeLength !== null ? String(h.officeLength) : '',
-          officeWidth: h.officeWidth !== undefined && h.officeWidth !== null ? String(h.officeWidth) : '',
-          homeSquareFeet: h.homeSquareFeet !== undefined && h.homeSquareFeet !== null ? String(h.homeSquareFeet) : '',
-          mortgagePayment: homeOffice.mortgagePayment || '',
-          propertyTaxes: homeOffice.propertyTaxes || '',
-          homeInsurance: homeOffice.homeInsurance || '',
-          utilities: homeOffice.utilities || '',
-          internet: homeOffice.internet || '',
+          officeLength: str(h.officeLength),
+          officeWidth: str(h.officeWidth),
+          homeSquareFeet: str(h.homeSquareFeet),
+          mortgagePayment: str(h.mortgagePayment),
+          propertyTaxes: str(h.propertyTaxes),
+          homeInsurance: str(h.homeInsurance),
+          utilities: str(h.utilities),
+          internet: str(h.internet),
         });
       } else {
         setUseHomeOffice(false);
@@ -610,6 +611,11 @@ for personalized advice.
           officeLength: parseFloat(homeOffice.officeLength) || 0,
           officeWidth: parseFloat(homeOffice.officeWidth) || 0,
           homeSquareFeet: parseFloat(homeOffice.homeSquareFeet) || 0,
+          mortgagePayment: parseFloat(homeOffice.mortgagePayment) || 0,
+          propertyTaxes: parseFloat(homeOffice.propertyTaxes) || 0,
+          homeInsurance: parseFloat(homeOffice.homeInsurance) || 0,
+          utilities: parseFloat(homeOffice.utilities) || 0,
+          internet: parseFloat(homeOffice.internet) || 0,
           businessUsePercent: calculations.businessUsePercent,
           deduction: calculations.homeOfficeDeduction
         } : { enabled: false }

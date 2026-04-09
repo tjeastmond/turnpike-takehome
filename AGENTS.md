@@ -7,7 +7,7 @@ This document is a quick guide for AI agents and contributors to understand this
 - **App**: Vite + React + **TypeScript** (strict) for a NJ 1099 tax calculator; UI and calculations live in a single component (`TaxCalculator.tsx`).
 - **Icons**: [lucide-react](https://lucide.dev/).
 - **Styling**: Tailwind CSS via PostCSS.
-- **Testing**: Vitest is configured in `vite.config.js` with `jsdom`, `globals: true`, and **`passWithNoTests: true`**. There are no `*.test.`* / `*.spec.*` files in the repo yet.
+- **Testing**: Vitest is configured in `vite.config.js` with `jsdom`, `globals: true`, and **`passWithNoTests: true`**. There are no `*.test.`_ / `_.spec.\*` files in the repo yet.
 
 ## Directory structure (high level)
 
@@ -33,7 +33,7 @@ This document is a quick guide for AI agents and contributors to understand this
 - `**pnpm-lock.yaml**`: Lockfile for reproducible installs.
 - `**index.html**`: Vite entry HTML; mounts React at `#root` and loads `src/main.tsx`.
 - `**vite.config.js**`: Vite config (React plugin), dev server port **4000**, Vitest settings, and the **`tax-calculator-save`** plugin (dev + preview only). See **Dev/preview middleware** below.
-- `**tsconfig.json`**: TypeScript compiler options (`strict`, `jsx: react-jsx`, `include: ["src"]`).
+- `**tsconfig.json`\*\*: TypeScript compiler options (`strict`, `jsx: react-jsx`, `include: ["src"]`).
 - `**tailwind.config.js**`: Tailwind content scanning for `index.html` and `src/**/*.{js,ts,jsx,tsx}`.
 - `**postcss.config.js**`: PostCSS plugin config (Tailwind + Autoprefixer).
 
@@ -53,7 +53,7 @@ This document is a quick guide for AI agents and contributors to understand this
 Run these from the repo root.
 
 - `**pnpm dev**`: Start Vite dev server (configured to use port **4000**).
-- `**pnpm build`**: Build the production bundle.
+- `**pnpm build`\*\*: Build the production bundle.
 - `**pnpm preview**`: Serve the production build locally for preview.
 - `**pnpm typecheck**`: Run `tsc -p tsconfig.json --noEmit`.
 - `**pnpm test**`: Run tests with Vitest.
@@ -96,4 +96,3 @@ Run these from the repo root.
 ### Toasts
 
 - Save, import, Files load, new session, and failures use a **fixed-position toast** at the bottom of the viewport so the toolbar does not shift.
-

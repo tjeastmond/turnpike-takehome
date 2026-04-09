@@ -14,7 +14,7 @@ async function listJsonBasenamesInSaves() {
   }
 }
 
-/** Same shape check as the app: non-empty JSON with object `inputs` and `calculations`. */
+/** Same structural rules as `isTaxExportJsonRoot` in `src/TaxCalculator.tsx` (POST body `contents`). */
 function isValidTaxExportContentsString(contents) {
   if (typeof contents !== 'string' || contents.trim() === '') return false;
   let parsed;

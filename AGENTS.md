@@ -4,10 +4,10 @@ This document is a quick guide for AI agents and contributors to understand this
 
 ## Project overview
 
-- **App**: Vite + React + **TypeScript** (strict) for a NJ 1099 tax calculator; UI and calculations live in a single component (`TaxCalculator.tsx`).
+- **App**: Vite + React + **TypeScript** (strict) for a NJ 1099 tax calculator. **UI** lives in `TaxCalculator.tsx`; **pure tax math** (`computeTaxSnapshot` and shared input types) lives in [`src/taxSnapshot.ts`](src/taxSnapshot.ts) and is imported by the component.
 - **Icons**: [lucide-react](https://lucide.dev/).
 - **Styling**: Tailwind CSS via PostCSS.
-- **Testing**: Vitest is configured in `vite.config.js` with `jsdom`, `globals: true`, and **`passWithNoTests: true`**. There are no `*.test.`_ / `_.spec.\*` files in the repo yet.
+- **Testing**: Vitest is configured in `vite.config.js` with `jsdom`, `globals: true`, and **`passWithNoTests: true`**. Unit tests for the calculation pipeline live under [`src/__tests__/`](src/__tests__/) as **`*.spec.ts`** files (for example [`src/__tests__/taxSnapshot.spec.ts`](src/__tests__/taxSnapshot.spec.ts)); they assert deterministic output and numeric regressions, not React UI or import/export flows.
 
 ## Directory structure (high level)
 
@@ -16,6 +16,12 @@ This document is a quick guide for AI agents and contributors to understand this
 ├── scripts/          # ancillary SQL (not used by the Vite app at runtime)
 ├── saves/            # created on first Save when dev/preview server handles POST /__tax-save
 ├── src/
+│   ├── __tests__/    # Vitest specs (*.spec.ts); tax math only
+│   ├── taxSnapshot.ts  # pure computeTaxSnapshot + types (no React)
+│   ├── TaxCalculator.tsx
+│   ├── main.tsx
+│   ├── index.css
+│   └── vite-env.d.ts
 ├── index.html
 ├── package.json
 ├── pnpm-lock.yaml
@@ -44,7 +50,8 @@ This document is a quick guide for AI agents and contributors to understand this
 ### `src/`
 
 - `**src/main.tsx**`: React entrypoint; creates the root and renders `TaxCalculator` inside `StrictMode`.
-- `**src/TaxCalculator.tsx**`: Main application UI and tax calculation logic (inputs, localStorage persistence, **Files** / **Save**, export/import, toast notifications).
+- `**src/taxSnapshot.ts**`: **`computeTaxSnapshot`** and types used for Schedule C / SE / federal / NJ math; no React. Imported by `TaxCalculator.tsx` and covered by [`src/__tests__/taxSnapshot.spec.ts`](src/__tests__/taxSnapshot.spec.ts).
+- `**src/TaxCalculator.tsx**`: Main application UI (inputs, localStorage persistence, **Files** / **Save**, export/import, toast notifications). Uses **`computeTaxSnapshot`** from `taxSnapshot.ts` for displayed numbers and text export.
 - `**src/index.css**`: Tailwind directives (`@tailwind base/components/utilities`).
 - `**src/vite-env.d.ts**`: Vite client types reference.
 
@@ -92,6 +99,7 @@ Run these from the repo root.
 
 - **Export → Export as JSON** downloads **`tax-calculation-YYYY-MM-DD.json`** (no **`NNN_`** prefix, no **`saves/`** write).
 - **Save** does not download; it writes under **`saves/`** when the dev/preview server is available.
+- **Home office fields**: When home office is enabled, **`inputs.homeOffice`** in the JSON includes mortgage, property tax, insurance, utilities, and internet (plus dimensions and computed deduction / business-use percent) so **Export**, **Save**, and **Import** round-trip those values. Older saves missing some keys still import with defaults.
 
 ### Toasts
 

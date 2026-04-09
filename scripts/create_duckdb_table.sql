@@ -1,21 +1,29 @@
--- Create table from CSV with additional columns
+-- Load scripts/stmt.csv (summary lines + blank line, then header row). Run from repo root:
+--   duckdb scripts/transactions.duckdb -f scripts/create_duckdb_table.sql
+
 CREATE OR REPLACE TABLE transactions AS
-SELECT 
-    CAST(SPLIT_PART(column0, ',', 1) AS INTEGER) AS line_number,
-    TRIM(SPLIT_PART(column0, ',', 2), '"') AS date,
-    TRIM(REPLACE(REPLACE(SPLIT_PART(column0, ',', 3), '"', ''), '\r', '')) AS description,
-    TRY_CAST(REPLACE(REPLACE(SPLIT_PART(column0, ',', 4), '"', ''), ',', '') AS DECIMAL(10,2)) AS amount,
-    TRY_CAST(REPLACE(REPLACE(SPLIT_PART(column0, ',', 5), '"', ''), ',', '') AS DECIMAL(10,2)) AS running_bal,
+SELECT
+    ROW_NUMBER() OVER () AS line_number,
+    strftime(t."Date", '%m/%d/%Y') AS date,
+    t."Description" AS description,
+    TRY_CAST(REPLACE(REPLACE(t."Amount", '"', ''), ',', '') AS DECIMAL(10, 2)) AS amount,
+    TRY_CAST(REPLACE(REPLACE(t."Running Bal.", '"', ''), ',', '') AS DECIMAL(10, 2)) AS running_bal,
     FALSE AS deductible,
-    CAST(NULL AS VARCHAR) AS category
-FROM read_csv_auto('docs/stmt.csv', 
-    header=false, 
-    delim='|',
-    columns={'column0': 'VARCHAR'}
-)
-WHERE line_number > 7  -- Skip the header/summary rows
-  AND date IS NOT NULL 
-  AND date != '';
+    CAST(NULL AS VARCHAR) AS category,
+    CAST(NULL AS VARCHAR) AS name
+FROM (
+        SELECT *
+        FROM read_csv_auto(
+                'scripts/stmt.csv',
+                skip = 6,
+                header = true,
+                ignore_errors = false
+            ) AS r
+        WHERE
+            r."Date" IS NOT NULL
+            AND r."Description" IS NOT NULL
+            AND trim(r."Description") != ''
+    ) AS t;
 
 -- Display the table structure
 DESCRIBE transactions;

@@ -26,8 +26,11 @@ yarn-error.log*
 # OS / editor files
 .DS_Store
 
-# Local databases
+# Local databases (includes scripts/transactions.duckdb)
 *.duckdb
+
+# Bank statement import (local / private)
+scripts/stmt.csv
 
 # App save snapshots (dev/preview JSON writes)
 saves/
